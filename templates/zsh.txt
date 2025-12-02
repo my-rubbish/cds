@@ -15,8 +15,7 @@ function _cds_update_json() {
       if (.[$n] | type != "object") then .[$n] = {} else . end |
       .[$n].path = $p |
       .[$n].commands = (.[$n].commands // []) |
-      .[$n].score = (.[$n].score // 0) |
-      . |= (to_entries | reverse | .[:'"$CDS_MAX"'] | reverse | from_entries)
+      .[$n].score = (.[$n].score // 0)
     ')
     echo "$new_json" > "$CDS_JSON.tmp" && mv "$CDS_JSON.tmp" "$CDS_JSON"
   fi
@@ -36,8 +35,7 @@ function _cds_increase_score() {
       if (.[$n] | type != "object") then .[$n] = {} else . end |
       .[$n].path = $p |
       .[$n].commands = (.[$n].commands // []) |
-      .[$n].score = ((.[$n].score // 0) + 1) |
-      . |= (to_entries | sort_by(.value.score) | reverse | .[:'"$CDS_MAX"'] | from_entries)
+      .[$n].score = ((.[$n].score // 0) + 1)
     ')
     echo "$new_json" > "$CDS_JSON.tmp" && mv "$CDS_JSON.tmp" "$CDS_JSON"
   fi
@@ -71,7 +69,7 @@ cds() {
   else
 
     local result target_path commands
-    result=$(jq -r 'to_entries | sort_by(.value.score) | reverse | .[0] | .value.path + "\n" + (.value.commands | join(";"))' "$CDS_JSON")
+    result=$(jq -r 'to_entries | sort_by(.value.score) | reverse | .[:20] | .[0] | "\(.value.path)\n\(.value.commands | join(";"))"')
     target_path=$(echo "$result" | head -n1)
     commands=$(echo "$result" | tail -n1)
 
