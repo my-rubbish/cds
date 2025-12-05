@@ -36,7 +36,21 @@ proc main() =
       handleConfigureCommand(config, paths, alias, command)
 
     of "list":
-      handleListCommand(paths)
+      let sel = handleListCommand(paths)
+      if sel.len == 0:
+        # 用户按 q 或取消，什么都不输出（shell 会继续）
+        quit(0)
+      else:
+        # 找到 alias，复用 handleJumpCommand 的逻辑来输出 path 和 commands
+        let resultStr = handleJumpCommand(paths, sel)
+
+        # resultStr 的格式与其他分支一致：path[|CDS_COMMANDS|cmd1|CDS_SEP|cmd2...]
+        let parts = resultStr.split("|CDS_COMMANDS|")
+        let targetPath = parts[0]
+        echo targetPath
+        if parts.len > 1:
+          let commands = parts[1].split("|CDS_SEP|")
+          echo "|CDS_EXECUTE|" & commands.join(";")
 
     of "help", "--help", "-h":
       showUsage()

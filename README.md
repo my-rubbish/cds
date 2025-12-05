@@ -15,7 +15,7 @@ Usage: cds save <alias> | cds <alias> | cds list
 ## compile
 
 ```
-nim c -d:release nim c -o:cds src/cds.nim
+nim c -d:release -o:cds src/cds.nim
 
 # or use:
 nimble build
