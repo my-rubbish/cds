@@ -1,9 +1,16 @@
 CDS_JSON="$HOME/.cds_config.json"
 CDS_MAX=20
-
 [[ ! -f $CDS_JSON ]] && echo "{}" > $CDS_JSON
 
+typeset -g _cds_updating=false
+
 function _cds_update_json() {
+
+  if [[ "$_cds_updating" == true ]]; then
+    return
+  fi
+  _cds_updating=true
+
   local dir="$PWD"
   local name="$(basename "$dir")"
   local old_json
@@ -19,6 +26,8 @@ function _cds_update_json() {
     ')
     echo "$new_json" > "$CDS_JSON.tmp" && mv "$CDS_JSON.tmp" "$CDS_JSON"
   fi
+
+  _cds_updating=false
 }
 
 function chpwd() { _cds_update_json }
@@ -44,47 +53,32 @@ function _cds_increase_score() {
 precmd_functions+=(_cds_increase_score)
 
 cds() {
-  if [[ "$1" =~ ^(save|list|c|configure|help|version)$ ]]; then
-    command cds "$@"
-  elif [[ -n "$1" ]]; then
+  local raw target_path commands cmds_part
 
-    local name="$1"
-    local target_path commands
-    target_path=$(jq -r --arg n "$name" '.[$n].path // empty' "$CDS_JSON")
-    commands=$(jq -r --arg n "$name" '.[$n].commands // empty | join(";")' "$CDS_JSON")
+  raw=$(command cds "$@" 2>&1 1>/dev/tty)
 
-    if [ -d "$target_path" ]; then
-      builtin cd "$target_path"
-
-      if [[ -n "$commands" ]]; then
-        IFS=';' read -rA cmds <<< "$commands"
-        for cmd in "${cmds[@]}"; do
-          [[ -n "$cmd" ]] && { echo "Executing: $cmd"; [[ "$cmd" == "nix-shell" ]] && exec $cmd || eval "$cmd"; }
-        done
-      fi
+  if [[ "$raw" == CDS_RESULT:* ]]; then
+    raw="${raw#CDS_RESULT:}"
+    if [[ "$raw" == *"|CDS_COMMANDS|"* ]]; then
+      target_path=${raw%%"|CDS_COMMANDS|"*}
+      cmds_part=${raw#*"|CDS_COMMANDS|"}
+      commands=$(printf '%s' "$cmds_part" | sed 's/|CDS_SEP|/;/g')
     else
-      echo "Directory '$name' not found in cds JSON"
-      return 1
+      target_path="$raw"
+      commands=""
     fi
-  else
 
-    local result target_path commands
-    result=$(jq -r 'to_entries | sort_by(.value.score) | reverse | .[:20] | .[0] | "\(.value.path)\n\(.value.commands | join(";"))"')
-    target_path=$(echo "$result" | head -n1)
-    commands=$(echo "$result" | tail -n1)
+    target_path=$(printf '%s' "$target_path" | tr -d '\r')
+    builtin cd "$target_path"
 
-    if [ -d "$target_path" ]; then
-      builtin cd "$target_path"
-
-      if [[ -n "$commands" ]]; then
-        IFS=';' read -rA cmds <<< "$commands"
-        for cmd in "${cmds[@]}"; do
-          [[ -n "$cmd" ]] && { echo "Executing: $cmd"; [[ "$cmd" == "nix-shell" ]] && exec $cmd || eval "$cmd"; }
-        done
-      fi
-    else
-      echo "No valid directory found"
-      return 1
+    if [[ -n "$commands" ]]; then
+      IFS=';' read -rA cmds <<< "$commands"
+      for cmd in "${cmds[@]}"; do
+        [[ -n "$cmd" ]] && {
+          echo "Executing: $cmd"
+          [[ "$cmd" == "nix-shell" ]] && exec $cmd || eval "$cmd"
+        }
+      done
     fi
   fi
 }
