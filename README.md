@@ -15,13 +15,14 @@ Usage: cds save <alias> | cds <alias> | cds list
 ## compile
 
 ```
-nim c -d:release -o:cds src/cds.nim
+nim c -d:release -o:cds src/cds.nim install -m755 cds ~/.local/bin/
 
-# or use:
-nimble build
-nimble install
-
-save csd to ~/.nimble/bin/cds
+~ » cds
+Usage: cds save <alias> | cds <alias> | cds list
+  save <alias>  - Save current directory with alias
+  cds c <alias> <command>   Add command to execute when entering directory
+  list          - List all saved aliases
+  <alias>       - Jump to saved directory
 ```
 
 ### config file
