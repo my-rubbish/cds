@@ -10,6 +10,18 @@ Usage: cds save <alias> | cds <alias> | cds list
   cds c <alias> <command>   Add command to execute when entering directory
   list          - List all saved aliases
   <alias>       - Jump to saved directory
+
+example:
+cds c iusx 'nvim .'
+
+  "iusx": {
+    "path": "/Users/uwu/Code/My/iusx",
+    "commands": [
+      "nvim ."
+    ],
+    "score": 12
+  },
+
 ```
 
 ## compile
@@ -33,7 +45,7 @@ Usage: cds save <alias> | cds <alias> | cds list
   "iusx": {
     "path": "/Users/uwu/Code/My/iusx",
     "commands": [
-      "nix-shell"
+      "nvim ."
     ],
     "score": 12
   },
@@ -64,6 +76,6 @@ Usage: cds save <alias> | cds <alias> | cds list
 ## Todo
 cds next plan list:
 
-* [ ] **TUI**: For example, when using `c list`, you can search for shortcuts.
+* [x] **TUI**: For example, when using `c list`, you can search for shortcuts.
 * [x] **Execute scripts automatically**: After entering a directory via `c c iusx`, automatically execute the script commands recorded in `~/.cds_config.json`.
 * [x] **Auto**: Can record automatically. For example, when in `/Users/uwu/Code/My/iusx`, it automatically records `iusx: /Users/uwu/Code/My/iusx`.
