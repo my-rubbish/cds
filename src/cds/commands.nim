@@ -45,6 +45,8 @@ proc renderList(
   items: seq[(string, string)],
   selected: int,
   query: string,
+  scrollOffset: int, 
+  limit: int, 
   title: string = "CDS Saved Paths (↑↓ move, Enter open, q quit)"
 ) =
   clearScreen()
@@ -64,19 +66,34 @@ proc renderList(
     maxAlias = 8
   let aliasWidth = maxAlias
 
-  for i, item in items:
+  let endIndex = min(scrollOffset + limit, items.len)
+
+  if scrollOffset > 0:
+    stdout.write("  ↑ ...\n")
+  else:
+    stdout.write("\n") 
+
+  for i in scrollOffset ..< endIndex:
+    let item = items[i]
     let (name, path) = item
     clearLine()
 
     if i == selected:
       stdout.write("> ")
-      stdout.write("\x1b[7m")
+      stdout.write("\x1b[7m") 
       stdout.write(padRight(name, aliasWidth) & " -> " & path)
       stdout.write("\x1b[0m")
     else:
       stdout.write("  " & padRight(name, aliasWidth) & " -> " & path)
 
     stdout.write "\n"
+
+  if endIndex < items.len:
+    stdout.write("  ↓ ...\n")
+
+  let rowsRendered = endIndex - scrollOffset
+  for k in 0 ..< (limit - rowsRendered):
+    stdout.write("\n")
 
   flushOut()
 
@@ -92,13 +109,21 @@ proc handleListCommand*(paths: JsonNode): string =
 
   var selected = 0
   var query = ""
+  var scrollOffset = 0 
 
   enableRawMode()
   defer: disableRawMode()
 
-  renderList(items, selected, query)
+  var listHeight = terminalHeight() - 5 
+  if listHeight < 5: listHeight = 5 
+
+  renderList(items, selected, query, scrollOffset, listHeight)
 
   while true:
+
+    listHeight = terminalHeight() - 5
+    if listHeight < 5: listHeight = 5
+
     var buf: array[3, char]
     discard read(0, addr buf[0], 3)
 
@@ -110,35 +135,51 @@ proc handleListCommand*(paths: JsonNode): string =
       clearScreen()
       return items[selected][0]
 
+    var needRender = false
+
     if buf[0] == '\x1b' and buf[1] == '[':
       case buf[2]
-      of 'A':
+      of 'A': 
         if selected > 0:
           dec selected
-          renderList(items, selected, query)
-      of 'B':
+
+          if selected < scrollOffset:
+            scrollOffset = selected
+          needRender = true
+      of 'B': 
         if selected < items.len - 1:
           inc selected
-          renderList(items, selected, query)
+
+          if selected >= scrollOffset + listHeight:
+            scrollOffset = selected - listHeight + 1
+          needRender = true
       else:
         discard
-      continue
 
-    if buf[0].ord == 127:
+    elif buf[0].ord == 127: 
       if query.len > 0:
         query.setLen(query.len - 1)
         let m = findMatch(items, query)
         if m >= 0:
           selected = m
-        renderList(items, selected, query)
-      continue
 
-    if buf[0].isAlphaNumeric():
+          scrollOffset = max(0, selected - (listHeight div 2))
+        else:
+            selected = 0
+            scrollOffset = 0
+        needRender = true
+
+    elif buf[0].isAlphaNumeric():
       query.add(buf[0])
       let m = findMatch(items, query)
       if m >= 0:
         selected = m
-      renderList(items, selected, query)
+
+        scrollOffset = max(0, selected - (listHeight div 2))
+      needRender = true
+
+    if needRender:
+       renderList(items, selected, query, scrollOffset, listHeight)
 
 proc handleSaveCommand*(config: AppConfig, paths: var JsonNode, alias: string) =
   if alias.len == 0:
